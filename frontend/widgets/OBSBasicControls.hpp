@@ -14,6 +14,8 @@ class OBSBasicControls : public QFrame {
 	Q_OBJECT
 
 	std::unique_ptr<Ui::OBSBasicControls> ui;
+	bool simplifiedMode = false;
+	bool recordingActive = false;
 
 	QScopedPointer<QMenu> streamButtonMenu;
 	QPointer<QAction> startStreamAction;
@@ -44,12 +46,14 @@ private slots:
 	void VirtualCamStopped();
 
 	void UpdateStudioModeState(bool enabled);
+	void UpdateRecordButtonText();
 
+public:
 	void EnableBroadcastFlow(bool enabled);
 	void EnableReplayBufferButtons(bool enabled);
 	void EnableVirtualCamButtons();
+	void SetSimplifiedMode(bool simplified);
 
-public:
 	OBSBasicControls(OBSBasic *main);
 	inline ~OBSBasicControls() {}
 

@@ -20,6 +20,7 @@
 #include "OBSBasic.hpp"
 
 #include <widgets/OBSBasicStats.hpp>
+#include <obs-interaction.h>
 
 void OBSBasic::InitHotkeys()
 {
@@ -279,6 +280,22 @@ void OBSBasic::CreateHotkeys()
 	sourceScreenshotHotkey = obs_hotkey_register_frontend("OBSBasic.SelectedSourceScreenshot",
 							      Str("Screenshot.SourceHotkey"), screenshotSource, this);
 	LoadHotkey(sourceScreenshotHotkey, "OBSBasic.SelectedSourceScreenshot");
+
+	auto toggleSimplified = [](void *data, obs_hotkey_id, obs_hotkey_t *, bool pressed) {
+		if (pressed)
+			QMetaObject::invokeMethod(static_cast<OBSBasic *>(data), "ToggleSimplifiedUI",
+						  Qt::QueuedConnection);
+	};
+
+	simplifiedUIHotkey =
+		obs_hotkey_register_frontend("OBSBasic.SimplifiedUI", "Simplified UI", toggleSimplified, this);
+	LoadHotkey(simplifiedUIHotkey, "OBSBasic.SimplifiedUI");
+
+	// Add default binding if it doesn't exist
+	if (!config_has_user_value(activeConfiguration, "Hotkeys", "OBSBasic.SimplifiedUI")) {
+		obs_key_combination_t combo = {INTERACT_CONTROL_KEY | INTERACT_SHIFT_KEY, OBS_KEY_L};
+		obs_hotkey_load_bindings(simplifiedUIHotkey, &combo, 1);
+	}
 }
 
 void OBSBasic::ClearHotkeys()
@@ -298,6 +315,7 @@ void OBSBasic::ClearHotkeys()
 	obs_hotkey_unregister(statsHotkey);
 	obs_hotkey_unregister(screenshotHotkey);
 	obs_hotkey_unregister(sourceScreenshotHotkey);
+	obs_hotkey_unregister(simplifiedUIHotkey);
 }
 
 void OBSBasic::ResetStatsHotkey()

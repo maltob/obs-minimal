@@ -45,6 +45,8 @@
 #include <deque>
 
 extern volatile bool recording_paused;
+extern bool opt_forced_simplified_ui;
+extern bool opt_forced_standard_ui;
 
 class ColorSelect;
 class OBSAbout;
@@ -241,6 +243,7 @@ private:
 	std::vector<OBSSignal> signalHandlers;
 
 	bool loaded = false;
+	bool simplifiedUI = false;
 	bool isClosing_ = false;
 	bool isClosePromptOpen_ = false;
 	bool handledShutdown = false;
@@ -258,6 +261,7 @@ private:
 	std::string patronJson;
 
 	std::unique_ptr<Ui::OBSBasic> ui;
+	QMap<QString, bool> dockVisibilitySaved;
 
 	void OnEvent(enum obs_frontend_event event);
 
@@ -483,7 +487,7 @@ private:
 
 	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys, replayBufHotkeys, vcamHotkeys,
 		togglePreviewHotkeys, contextBarHotkeys;
-	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey, addChapterHotkey;
+	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey, addChapterHotkey, simplifiedUIHotkey;
 
 	void InitHotkeys();
 	void CreateHotkeys();
@@ -1631,8 +1635,12 @@ private slots:
 
 	/* Virtual Cam action (start/stop) slots */
 	void VirtualCamActionTriggered();
-
 	void OpenVirtualCamConfig();
+
+	void ToggleSimplifiedUI();
+
+private:
+	void ApplySimplifiedUI(bool enable);
 
 public:
 	inline bool VCamEnabled() const { return vcamEnabled; }

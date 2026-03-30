@@ -132,6 +132,11 @@ void OBSBasic::SourceToolBarActionsSetEnabled()
 
 void OBSBasic::UpdateContextBar(bool force)
 {
+	if (simplifiedUI) {
+		ui->contextContainer->setVisible(false);
+		return;
+	}
+
 	SourceToolBarActionsSetEnabled();
 
 	if (!ui->contextContainer->isVisible() && !force)

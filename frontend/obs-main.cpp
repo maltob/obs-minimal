@@ -77,6 +77,8 @@ bool opt_disable_missing_files_check = false;
 string opt_starting_collection;
 string opt_starting_profile;
 string opt_starting_scene;
+bool opt_forced_simplified_ui = false;
+bool opt_forced_standard_ui = false;
 
 bool restart = false;
 bool restart_safe = false;
@@ -989,6 +991,12 @@ int main(int argc, char *argv[])
 		} else if (arg_is(argv[i], "--disable-missing-files-check", nullptr)) {
 			opt_disable_missing_files_check = true;
 
+		} else if (arg_is(argv[i], "--simplified", nullptr)) {
+			opt_forced_simplified_ui = true;
+
+		} else if (arg_is(argv[i], "--standard-ui", nullptr)) {
+			opt_forced_standard_ui = true;
+
 		} else if (arg_is(argv[i], "--steam", nullptr)) {
 			steam = true;
 
@@ -998,7 +1006,9 @@ int main(int argc, char *argv[])
 				"--startstreaming: Automatically start streaming.\n"
 				"--startrecording: Automatically start recording.\n"
 				"--startreplaybuffer: Start replay buffer.\n"
-				"--startvirtualcam: Start virtual camera (if available).\n\n"
+				"--startvirtualcam: Start virtual camera (if available).\n"
+				"--simplified: Force Simplified UI mode.\n"
+				"--standard-ui: Force Standard UI mode.\n\n"
 				"--collection <string>: Use specific scene collection."
 				"\n"
 				"--profile <string>: Use specific profile.\n"

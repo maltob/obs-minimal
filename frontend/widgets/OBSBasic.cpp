@@ -1262,7 +1262,20 @@ void OBSBasic::OBSInit()
 
 	if (!first_run) {
 		config_set_bool(App()->GetUserConfig(), "General", "FirstRun", true);
+		config_set_bool(App()->GetUserConfig(), "General", "SimplifiedUI", true);
 		config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
+	}
+
+	simplifiedUI = config_get_bool(App()->GetUserConfig(), "General", "SimplifiedUI");
+
+	if (opt_forced_standard_ui)
+		simplifiedUI = false;
+	else if (opt_forced_simplified_ui)
+		simplifiedUI = true;
+
+	if (simplifiedUI) {
+		// Apply simplified UI state
+		ApplySimplifiedUI(simplifiedUI);
 	}
 
 	if (!first_run && !has_last_version && !Active())
@@ -1289,6 +1302,10 @@ void OBSBasic::OBSInit()
 	/* Add multiview menu      */
 
 	ui->viewMenu->addSeparator();
+
+	QAction *simplifiedUIAction = ui->viewMenu->addAction("Simplified UI", this, &OBSBasic::ToggleSimplifiedUI);
+	simplifiedUIAction->setCheckable(true);
+	simplifiedUIAction->setData(QString("SimplifiedUIAction"));
 
 	connect(ui->viewMenu->menuAction(), &QAction::hovered, this, &OBSBasic::updateMultiviewProjectorMenu);
 	OBSBasic::updateMultiviewProjectorMenu();
@@ -1361,6 +1378,7 @@ void OBSBasic::OBSInit()
 		OBSMessageBox::warning(this, QTStr("PluginsFailedToLoad.Title"), failed_msg);
 	}
 }
+
 
 void OBSBasic::OnFirstLoad()
 {
@@ -2195,4 +2213,95 @@ OBSPromptResult OBSBasic::PromptForName(const OBSPromptRequest &request, const O
 void OBSBasic::on_actionOpenPluginManager_triggered()
 {
 	App()->pluginManagerOpenDialog();
+}
+void OBSBasic::ToggleSimplifiedUI()
+{
+	ApplySimplifiedUI(!simplifiedUI);
+}
+
+void OBSBasic::ApplySimplifiedUI(bool enable)
+{
+	simplifiedUI = enable;
+
+	config_set_bool(App()->GetUserConfig(), "General", "SimplifiedUI", simplifiedUI);
+
+	QAction *action = nullptr;
+	for (QAction *a : ui->viewMenu->actions()) {
+		if (a->data().toString() == "SimplifiedUIAction") {
+			action = a;
+			break;
+		}
+	}
+	if (action)
+		action->setChecked(simplifiedUI);
+
+	OBSBasicControls *controls = findChild<OBSBasicControls *>();
+	if (controls)
+		controls->SetSimplifiedMode(simplifiedUI);
+
+	// Hide/Show all docks
+	QList<QDockWidget *> docks = findChildren<QDockWidget *>();
+
+	if (simplifiedUI) {
+		dockVisibilitySaved.clear();
+		for (QDockWidget *dock : docks) {
+			if (dock == controlsDock)
+				continue;
+			dockVisibilitySaved[dock->objectName()] = dock->isVisible();
+			dock->setVisible(false);
+		}
+		if (controlsDock)
+			controlsDock->setVisible(true);
+
+		// Hide menus
+		QMenuBar *menubar = menuBar();
+		for (QAction *menuAction : menubar->actions()) {
+			QMenu *menu = menuAction->menu();
+			if (!menu)
+				continue;
+
+			// Keep File, View, Help
+			QString name = menu->objectName();
+			bool keep = (name == "menuFile" || name == "menuView" || name == "menuHelp");
+			if (!keep)
+				menuAction->setVisible(false);
+		}
+
+		// Hide context bar buttons
+		ui->sourcePropertiesButton->setVisible(false);
+		ui->sourceFiltersButton->setVisible(false);
+		ui->sourceInteractButton->setVisible(false);
+
+		// Hide the entire context container (No Source Selected)
+		ui->contextContainer->setVisible(false);
+
+		// Lock preview by default in simplified mode
+		if (!ui->preview->Locked()) {
+			on_actionLockPreview_triggered();
+		}
+	} else {
+		for (QDockWidget *dock : docks) {
+			if (dock == controlsDock)
+				continue;
+			if (dockVisibilitySaved.contains(dock->objectName())) {
+				dock->setVisible(dockVisibilitySaved[dock->objectName()]);
+			} else {
+				dock->setVisible(true);
+			}
+		}
+
+		// Restore menus
+		QMenuBar *menubar = menuBar();
+		for (QAction *menuAction : menubar->actions()) {
+			menuAction->setVisible(true);
+		}
+
+		// Restore buttons
+		ui->sourcePropertiesButton->setVisible(true);
+		ui->sourceFiltersButton->setVisible(true);
+		ui->sourceInteractButton->setVisible(true);
+
+		// Restore context container
+		ui->contextContainer->setVisible(true);
+	}
 }

@@ -1,0 +1,87 @@
+name: Simplified UI Release
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sundays at midnight
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release Simplified UI
+    runs-on: windows-2022
+    steps:
+      - name: Checkout Upstream OBS 🔭
+        uses: actions/checkout@v4
+        with:
+          repository: obsproject/obs-studio
+          submodules: recursive
+          fetch-depth: 0
+          path: obs-studio
+
+      - name: Checkout This Repo (for patch) 🩹
+        uses: actions/checkout@v4
+        with:
+          path: patch-repo
+
+      - name: Apply Simplified UI Patch 🛠️
+        shell: pwsh
+        working-directory: obs-studio
+        run: |
+          git apply ../patch-repo/simplified_ui.patch
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git commit -am "Apply Simplified UI changes"
+
+      - name: Build OBS Studio 🧱
+        uses: ./obs-studio/.github/actions/build-obs
+        with:
+          target: x64
+          config: Release
+        env:
+          # Optional: Add secrets here if you want Twitch/YouTube integration in the build
+          TWITCH_CLIENTID: ${{ secrets.TWITCH_CLIENT_ID }}
+          RESTREAM_CLIENTID: ${{ secrets.RESTREAM_CLIENTID }}
+          YOUTUBE_CLIENTID: ${{ secrets.YOUTUBE_CLIENTID }}
+          YOUTUBE_SECRET: ${{ secrets.YOUTUBE_SECRET }}
+
+      - name: Package OBS Studio 📀
+        uses: ./obs-studio/.github/actions/package-obs
+        with:
+          target: x64
+          config: Release
+          package: true
+
+      - name: Determine Version 🏷️
+        id: version
+        shell: pwsh
+        working-directory: obs-studio
+        run: |
+          $ver = git describe --tags --abbrev=0
+          $date = Get-Date -Format "yyyyMMdd"
+          echo "tag=${ver}-simplified-${date}" >> $env:GITHUB_OUTPUT
+          echo "display_ver=${ver} (Simplified UI)" >> $env:GITHUB_OUTPUT
+
+      - name: Create Release 🚀
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: OBS Studio ${{ steps.version.outputs.display_ver }}
+          body: |
+            Automated build of OBS Studio with Simplified UI.
+            
+            **Changes Included:**
+            - Hidden Scenes, Sources, Mixer, and Transitions docks.
+            - Simplified Controls dock (Start/Record buttons only).
+            - Default mode set to Simplified.
+            - Toggle hotkey: `Ctrl+Shift+L`.
+            
+            Built from upstream: `obsproject/obs-studio`
+          files: |
+            obs-studio/build_x64/obs-studio-*-windows-x64.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

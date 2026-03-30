@@ -1,6 +1,7 @@
 #include "OBSBasicControls.hpp"
 #include "OBSBasic.hpp"
 #include "qt-wrappers.hpp"
+#include <obs-frontend-api.h>
 
 #include "moc_OBSBasicControls.cpp"
 
@@ -177,8 +178,9 @@ void OBSBasicControls::BroadcastStreamStarted(bool autoStop)
 
 void OBSBasicControls::RecordingStarted(bool pausable)
 {
+	recordingActive = true;
 	setClasses(ui->recordButton, "state-active");
-	ui->recordButton->setText(QTStr("Basic.Main.StopRecording"));
+	UpdateRecordButtonText();
 
 	if (pausable) {
 		ui->pauseRecordButton->setVisible(pausable);
@@ -210,13 +212,17 @@ void OBSBasicControls::RecordingUnpaused()
 
 void OBSBasicControls::RecordingStopping()
 {
-	ui->recordButton->setText(QTStr("Basic.Main.StoppingRecording"));
+	QString text = QTStr("Basic.Main.StoppingRecording");
+	if (simplifiedMode)
+		text = "⏳ " + text;
+	ui->recordButton->setText(text);
 }
 
 void OBSBasicControls::RecordingStopped()
 {
+	recordingActive = false;
 	setClasses(ui->recordButton, "");
-	ui->recordButton->setText(QTStr("Basic.Main.StartRecording"));
+	UpdateRecordButtonText();
 
 	ui->pauseRecordButton->setVisible(false);
 }
@@ -261,6 +267,9 @@ void OBSBasicControls::UpdateStudioModeState(bool enabled)
 
 void OBSBasicControls::EnableBroadcastFlow(bool enabled)
 {
+	if (simplifiedMode)
+		return;
+
 	ui->broadcastButton->setVisible(enabled);
 	ui->broadcastButton->setEnabled(enabled);
 
@@ -273,11 +282,64 @@ void OBSBasicControls::EnableBroadcastFlow(bool enabled)
 
 void OBSBasicControls::EnableReplayBufferButtons(bool enabled)
 {
+	if (simplifiedMode)
+		return;
+
 	ui->replayBufferButton->setVisible(enabled);
 }
 
 void OBSBasicControls::EnableVirtualCamButtons()
 {
+	if (simplifiedMode)
+		return;
+
 	ui->virtualCamButton->setVisible(true);
 	ui->virtualCamConfigButton->setVisible(true);
+}
+
+void OBSBasicControls::SetSimplifiedMode(bool simplified)
+{
+	simplifiedMode = simplified;
+
+	ui->modeSwitch->setVisible(!simplified);
+	ui->settingsButton->setVisible(!simplified);
+	ui->virtualCamButton->setVisible(false);
+	ui->virtualCamConfigButton->setVisible(false);
+	ui->replayBufferButton->setVisible(false);
+	ui->saveReplayButton->setVisible(false);
+	ui->streamButton->setVisible(!simplified);
+	ui->broadcastButton->setVisible(false);
+
+	if (simplified) {
+		ui->recordButton->setMinimumHeight(66);
+		ui->recordButton->setFont(QFont("", 12, QFont::Bold));
+		// Add some margin around the record button
+		layout()->setContentsMargins(40, 20, 40, 20);
+	} else {
+		ui->recordButton->setMinimumHeight(22);
+		ui->recordButton->setFont(QFont());
+		layout()->setContentsMargins(2, 2, 2, 2);
+
+		EnableReplayBufferButtons(obs_frontend_replay_buffer_active());
+		if (obs_frontend_virtualcam_active())
+			EnableVirtualCamButtons();
+		EnableBroadcastFlow(obs_frontend_streaming_active());
+	}
+
+	UpdateRecordButtonText();
+}
+
+void OBSBasicControls::UpdateRecordButtonText()
+{
+	QString text;
+	if (recordingActive) {
+		text = QTStr("Basic.Main.StopRecording");
+		if (simplifiedMode)
+			text = "🟦 " + text;
+	} else {
+		text = QTStr("Basic.Main.StartRecording");
+		if (simplifiedMode)
+			text = "🟢 " + text;
+	}
+	ui->recordButton->setText(text);
 }
